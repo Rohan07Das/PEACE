@@ -1,2 +1,158 @@
-CODE FOR THIS PROJECT
-VEHICLE PARKING CIRCUIT DIAGRAM USING PROTUES
+#include <Servo.h>
+#include <Wire.h>
+#include <LiquidCrystal_I2C.h>
+
+// Define pins
+int irEntrance = 2;  // Entrance IR sensor
+int irExit = 4;      // Exit IR sensor
+int irSlot1 = 8;     // Slot 1 IR sensor
+int irSlot2 = 9;     // Slot 2 IR sensor
+int irSlot3 = 10;    // Slot 3 IR sensor
+int servoPin = 3;    // Servo motor pin
+Servo gateServo;     // Create a Servo object
+
+// LCD setup
+LiquidCrystal_I2C lcd(0x27, 16, 2);  // I2C address 0x27, 16 chars, 2 lines
+
+// Variables to store previous sensor states
+int previousEntranceState = HIGH;
+int previousExitState = HIGH;
+
+void setup() {
+  // Initialize the IR sensor pins as input
+  pinMode(irEntrance, INPUT);
+  pinMode(irExit, INPUT);
+  pinMode(irSlot1, INPUT);
+  pinMode(irSlot2, INPUT);
+  pinMode(irSlot3, INPUT);
+  
+  // Attach the servo motor to the servo pin
+  gateServo.attach(servoPin);
+  
+  // Set the initial position of the servo (gate closed)
+  gateServo.write(0);   // Start with the servo at 0 degrees (closed)
+
+  // Initialize the LCD
+  lcd.init();
+  lcd.backlight();
+  
+  // Start serial communication for debugging (optional)
+  Serial.begin(9600);
+
+  // Display welcome messages
+  displayWelcomeMessages();
+}
+
+void loop() {
+  // Read the current values of the IR sensors
+  int entranceValue = digitalRead(irEntrance);
+  int exitValue = digitalRead(irExit);
+  int slot1Full = digitalRead(irSlot1);
+  int slot2Full = digitalRead(irSlot2);
+  int slot3Full = digitalRead(irSlot3);
+  
+  // Check if all slots are full
+  bool allSlotsFull = (slot1Full == LOW && slot2Full == LOW && slot3Full == LOW);
+
+  // If all slots are full, display the message and don't open the gate
+  if (allSlotsFull) {
+    lcd.clear();
+    lcd.setCursor(0, 0);
+    lcd.print("Parking is Full!");
+    lcd.setCursor(0, 1);
+    lcd.print("You Can't Enter!");
+    Serial.println("Parking Full - Gate will not open");
+    gateServo.write(0);  // Ensure the gate stays closed
+  } else {
+    // Display slot status on LCD
+    displaySlotStatus(slot1Full, slot2Full, slot3Full);
+  }
+  
+  // Entrance Logic: Trigger only when the entrance sensor state changes from HIGH to LOW
+  if (entranceValue == LOW && previousEntranceState == HIGH && !allSlotsFull) {
+    // Open the gate (try a smaller angle to prevent excessive movement)
+    gateServo.write(90);  // Adjusted to 90 degrees
+    Serial.println("Entrance detected - Gate opening");
+    delay(2000);  // Keep the gate open for 2 seconds
+
+    // Close the gate after 2 seconds
+    gateServo.write(0);
+    Serial.println("Gate closing after entrance");
+    delay(1000);
+  }
+  
+  // Exit Logic: Trigger only when the exit sensor state changes from HIGH to LOW
+  if (exitValue == LOW && previousExitState == HIGH) {
+    // Open the gate for exiting
+    gateServo.write(90);  // Adjusted to 90 degrees
+    Serial.println("Exit detected - Gate opening");
+    delay(2000);  // Keep the gate open for 2 seconds
+    
+    // Close the gate after 2 seconds
+    gateServo.write(0);
+    Serial.println("Gate closing after exit");
+    delay(1000);
+  }
+
+  // Update the previous state variables for entrance and exit
+  previousEntranceState = entranceValue;
+  previousExitState = exitValue;
+  
+  // Small delay to avoid rapid sensor checking
+  delay(200);
+}
+
+// Function to display the welcome messages
+void displayWelcomeMessages() {
+  lcd.clear();
+  lcd.setCursor(3, 0);  // Adjusted to center the message
+  lcd.print("Welcome to");
+  lcd.setCursor(3, 1);
+  lcd.print(" our project");
+  delay(1500);
+
+  lcd.clear();
+  lcd.setCursor(3, 0);
+  lcd.print(" Presenting ");
+  lcd.setCursor(4, 1);
+  lcd.print("you");
+  delay(1500);
+
+  lcd.clear();
+  lcd.setCursor(0, 0);
+  lcd.print("vehicle Auto-");
+  lcd.setCursor(0, 1);
+  lcd.print("Parking system");
+  delay(1500);
+
+  lcd.clear();
+  lcd.setCursor(6, 0);
+  lcd.print("BY");
+  delay(1500);
+
+  lcd.clear();
+  lcd.setCursor(0, 0);
+  lcd.print("Rakesh Ku Behera");
+  lcd.setCursor(0, 1);
+  lcd.print("Rohan Lal Das");
+  delay(1500);
+
+  lcd.clear();
+}
+
+// Function to display the slot status
+void displaySlotStatus(int slot1, int slot2, int slot3) {
+  lcd.clear();
+  lcd.setCursor(0, 0);
+  lcd.print("S1:");
+  lcd.print(slot1 == HIGH ? "Empty" : "Full");
+  
+  lcd.setCursor(8, 0);
+  lcd.print("S2:");
+  lcd.print(slot2 == HIGH ? "Empty" : "Full");
+  
+  lcd.setCursor(0, 1);
+  lcd.print("S3:");
+  lcd.print(slot3 == HIGH ? "Empty" : "Full");
+}
+
